@@ -1,7 +1,7 @@
 {
     "release": [
         {
-            "version": "1.4.0",
+            "version": "1.3.5",
             "checksum": [
                 {
                     "name": "aws-distro-opentelemetry-dotnet-instrumentation-linux-glibc-arm64.zip",
