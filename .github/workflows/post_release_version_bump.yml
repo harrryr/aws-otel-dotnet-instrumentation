@@ -6,6 +6,7 @@ on:
       version:
         description: 'Version number (e.g., 1.0.1)'
         required: true
+  push:
 
 env:
   AWS_DEFAULT_REGION: us-east-1
@@ -27,8 +28,8 @@ jobs:
 
       - name: Extract Major.Minor Version and setup Env variable
         run: |
-          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
-          echo "MAJOR_MINOR=$(echo ${{ github.event.inputs.version }} | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
+          echo "VERSION=1.4.0" >> $GITHUB_ENV
+          echo "MAJOR_MINOR=$(echo 1.4.0 | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
 
       - name: Get current major.minor version from main branch
         id: get_version
@@ -84,8 +85,8 @@ jobs:
 
       - name: Extract Major.Minor Version and setup Env variable
         run: |
-          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
-          echo "MAJOR_MINOR=$(echo ${{ github.event.inputs.version }} | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
+          echo "VERSION=1.4.0" >> $GITHUB_ENV
+          echo "MAJOR_MINOR=$(echo 1.4.0 | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')" >> $GITHUB_ENV
 
       - name: Determine release branch and checkout
         run: |
@@ -96,12 +97,45 @@ jobs:
       - name: Update version to next development version in main
         # TODO update version in daily_scan.yml
         run: |
-          DEV_VERSION="${{ github.event.inputs.version }}.dev0"
+          DEV_VERSION="1.4.0.dev0"
           sed -i "s/public static string version = \".*\";/public static string version = \"${DEV_VERSION}\";/" src/AWS.Distro.OpenTelemetry.AutoInstrumentation/Version.cs
           sed -i "s/private readonly string version = \".*\";/private readonly string version = \"${DEV_VERSION}\";/" build/Build.InstallationScripts.cs
-          VERSION="${{ github.event.inputs.version }}"
+          VERSION="1.4.0"
           git add src/AWS.Distro.OpenTelemetry.AutoInstrumentation/Version.cs
           git add build/Build.InstallationScripts.cs
+
+      - name: Append latest release checksum to release-build-metadata.json
+        run: |
+          ARTIFACT_NAMES=(
+            "aws-distro-opentelemetry-dotnet-instrumentation-linux-glibc-arm64.zip"
+            "aws-distro-opentelemetry-dotnet-instrumentation-linux-glibc-x64.zip"
+            "aws-distro-opentelemetry-dotnet-instrumentation-linux-musl-arm64.zip"
+            "aws-distro-opentelemetry-dotnet-instrumentation-linux-musl-x64.zip"
+            "aws-distro-opentelemetry-dotnet-instrumentation-windows.zip"
+            "aws-otel-dotnet-install.sh"
+            "AWS.Otel.DotNet.Auto.psm1"
+          )
+
+          FILE="release-build-metadata.json"
+          UPDATED_JSON=$(jq --arg version "1.4.0" \
+                  '.release[0].version = $version' "$FILE")
+          echo "$UPDATED_JSON" > "$FILE"
+
+          BASE_URL="https://github.com/aws-observability/aws-otel-dotnet-instrumentation/releases/download/v1.4.0"
+          for ARTIFACT_NAME in "${ARTIFACT_NAMES[@]}"; do
+            curl -L -o "$ARTIFACT_NAME" "${BASE_URL}/${ARTIFACT_NAME}"
+            CHECKSUM=$(shasum -a 256 $ARTIFACT_NAME | awk '{ print $1 }')
+
+            UPDATED_JSON=$(jq --arg name "$ARTIFACT_NAME" \
+                              --arg checksum "$CHECKSUM" \
+                              '.release[0].checksum += [{"name": $name, "checksum": $checksum}]' "$FILE")
+            echo "$UPDATED_JSON" > "$FILE"
+          done
+
+          git add release-build-metadata.json
+
+      - name: Push changes to Github
+        run: |
           git commit -m "Prepare main for next development cycle: Update version to $DEV_VERSION"
           git push --set-upstream origin "prepare-main-for-next-dev-cycle-${VERSION}"
 
@@ -109,7 +143,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ env.BOT_TOKEN_GITHUB_RW_PATOKEN }}
         run: |
-          DEV_VERSION="${{ github.event.inputs.version }}.dev0"
+          DEV_VERSION="1.4.0.dev0"
           gh pr create --title "Post release $VERSION: Update version to $DEV_VERSION" \
                        --body "This PR prepares the main branch for the next development cycle by updating the version to $DEV_VERSION and updating the image version to be scanned to the latest released.
 
