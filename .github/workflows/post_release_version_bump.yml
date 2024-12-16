@@ -103,7 +103,7 @@ jobs:
           git add src/AWS.Distro.OpenTelemetry.AutoInstrumentation/Version.cs
           git add build/Build.InstallationScripts.cs
 
-      - name: Append latest release checksum to release-build-metadata.json
+      - name: Append latest release checksum to release-artifacts-metadata.json
         run: |
           ARTIFACT_NAMES=(
             "aws-distro-opentelemetry-dotnet-instrumentation-linux-glibc-arm64.zip"
@@ -128,12 +128,12 @@ jobs:
               '.checksum += [{"name": $name, "checksum": $checksum}]')
           done
 
-          FILE="release-build-metadata.json"
+          FILE="release-artifacts-metadata.json"
           UPDATED_JSON=$(jq --argjson new_release "$NEW_RELEASE" \
             '.release += [$new_release]' "$FILE")
           echo "$UPDATED_JSON" > "$FILE"
 
-          git add release-build-metadata.json
+          git add release-artifacts-metadata.json
 
       - name: Push changes to Github
         run: |
