@@ -6,6 +6,7 @@ using System.Diagnostics.Metrics;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+using static AWS.Distro.OpenTelemetry.AutoInstrumentation.AwsAttributeKeys;
 using static AWS.Distro.OpenTelemetry.AutoInstrumentation.AwsSpanProcessingUtil;
 
 namespace AWS.Distro.OpenTelemetry.AutoInstrumentation;
@@ -31,6 +32,8 @@ public class AwsSpanMetricsProcessor : BaseProcessor<Activity>
     private const int ErrorCodeUpperBound = 499;
     private const int FaultCodeLowerBound = 500;
     private const int FaultCodeUpperBound = 599;
+
+    private const string Ec2MetadataApiIp = "169.254.169.254";
 
     // Metric instruments
     private Histogram<long> errorHistogram;
@@ -74,9 +77,11 @@ public class AwsSpanMetricsProcessor : BaseProcessor<Activity>
         Dictionary<string, ActivityTagsCollection> attributeDictionary =
             this.generator.GenerateMetricAttributeMapFromSpan(activity, this.resource);
 
-        foreach (KeyValuePair<string, ActivityTagsCollection> attribute in attributeDictionary)
-        {
-            this.RecordMetrics(activity, attribute.Value);
+        if (!IsEc2MetadataApiSpan(attributeDictionary)) {
+            foreach (KeyValuePair<string, ActivityTagsCollection> attribute in attributeDictionary)
+            {
+                this.RecordMetrics(activity, attribute.Value);
+            }
         }
     }
 
@@ -167,5 +172,18 @@ public class AwsSpanMetricsProcessor : BaseProcessor<Activity>
             this.RecordErrorOrFault(span, attributes);
             this.RecordLatency(span, attributes);
         }
+    }
+
+    private bool IsEc2MetadataApiSpan(Dictionary<string, ActivityTagsCollection> attributeDict)
+    {
+        if (attributeDict.TryGetValue(MetricAttributeGeneratorConstants.DependencyMetric, out ActivityTagsCollection? activityTagsCollection) &&
+            activityTagsCollection != null && 
+            activityTagsCollection.TryGetValue(AttributeAWSRemoteService, out object? value) &&
+            value is string ip &&
+            ip == Ec2MetadataApiIp)
+        {
+            return true;
+        }
+        return false;
     }
 }
