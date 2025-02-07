@@ -539,7 +539,7 @@ public class AwsSpanMetricsProcessorTest : IDisposable
     private Dictionary<string, ActivityTagsCollection> BuildEc2MetadataApiMetricAttributes()
     {
         Dictionary<string, ActivityTagsCollection> attributes = new Dictionary<string, ActivityTagsCollection>();
-        attributes.Add(MetricAttributeGeneratorConstants.ServiceMetric, new ActivityTagsCollection([new KeyValuePair<string, object?>(MetricAttributeGeneratorConstants.DependencyMetric, "169.254.169.254")]));
+        attributes.Add(MetricAttributeGeneratorConstants.DependencyMetric, new ActivityTagsCollection([new KeyValuePair<string, object?>(AttributeAWSRemoteService, "169.254.169.254")]));
         return attributes;
     }
 

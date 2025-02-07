@@ -174,10 +174,10 @@ public class AwsSpanMetricsProcessor : BaseProcessor<Activity>
         }
     }
 
-    private bool IsEc2MetadataApiSpan(Dictionary<string, Dictionary<string, string>> attributeDict)
+    private bool IsEc2MetadataApiSpan(Dictionary<string, ActivityTagsCollection> attributeDict)
     {
         return attributeDict.TryGetValue(MetricAttributeGeneratorConstants.DependencyMetric, out var innerDict) &&
-               innerDict.TryGetValue(AwsAttributeKeys.AWS_REMOTE_SERVICE, out var value) &&
+               innerDict.TryGetValue(AttributeAWSRemoteService, out var value) &&
                value == Ec2MetadataApiIp;
     }
 }
