@@ -77,11 +77,9 @@ public class AwsSpanMetricsProcessor : BaseProcessor<Activity>
         Dictionary<string, ActivityTagsCollection> attributeDictionary =
             this.generator.GenerateMetricAttributeMapFromSpan(activity, this.resource);
 
-        if (!IsEc2MetadataApiSpan(attributeDictionary)) {
-            foreach (KeyValuePair<string, ActivityTagsCollection> attribute in attributeDictionary)
-            {
-                this.RecordMetrics(activity, attribute.Value);
-            }
+        foreach (KeyValuePair<string, ActivityTagsCollection> attribute in attributeDictionary)
+        {
+            this.RecordMetrics(activity, attribute.Value);
         }
     }
 
@@ -167,18 +165,16 @@ public class AwsSpanMetricsProcessor : BaseProcessor<Activity>
     private void RecordMetrics(Activity span, ActivityTagsCollection attributes)
     {
         // Only record metrics if non-empty attributes are returned.
-        if (attributes.Count > 0)
+        if (attributes.Count > 0 && !IsEc2MetadataApiSpan(attributes))
         {
             this.RecordErrorOrFault(span, attributes);
             this.RecordLatency(span, attributes);
         }
     }
 
-    private bool IsEc2MetadataApiSpan(Dictionary<string, ActivityTagsCollection> attributeDict)
+    private bool IsEc2MetadataApiSpan(ActivityTagsCollection attributes)
     {
-        if (attributeDict.TryGetValue(MetricAttributeGeneratorConstants.DependencyMetric, out ActivityTagsCollection? activityTagsCollection) &&
-            activityTagsCollection != null && 
-            activityTagsCollection.TryGetValue(AttributeAWSRemoteService, out object? value) &&
+        if (attributes.TryGetValue(AttributeAWSRemoteService, out object? value) &&
             value is string ip &&
             ip == Ec2MetadataApiIp)
         {
